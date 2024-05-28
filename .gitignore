@@ -60,3 +60,6 @@ venv/
 
 # Local development environment
 local_settings.py
+
+# data
+csv
