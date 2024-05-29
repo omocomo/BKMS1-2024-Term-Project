@@ -42,7 +42,9 @@ class Reviewer(Base):
     skin_concern_atopy = Column(Boolean, nullable=True)
     skin_concern_spots = Column(Boolean, nullable=True)
 
-    reviews = relationship("Review", backref=backref("reviewer"))
+    reviews = relationship(
+        "Review", backref=backref("reviewer"), cascade="all, delete-orphan"
+    )
 
 
 class Product(Base):
@@ -76,7 +78,9 @@ class Product(Base):
     irritation_level_average = Column(Integer, nullable=True)
     irritation_level_irritating = Column(Integer, nullable=True)
 
-    reviews = relationship("Review", backref=backref("product"))
+    reviews = relationship(
+        "Review", backref=backref("product"), cascade="all, delete-orphan"
+    )
 
 
 class Review(Base):
