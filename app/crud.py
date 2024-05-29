@@ -3,14 +3,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from . import models, schemas
 
+
 # CRUD functions for Reviewer
 async def get_reviewer(db: AsyncSession, reviewer_id: int):
-    result = await db.execute(select(models.Reviewer).where(models.Reviewer.reviewer_id == reviewer_id))
+    result = await db.execute(
+        select(models.Reviewer).where(models.Reviewer.reviewer_id == reviewer_id)
+    )
     return result.scalars().first()
+
 
 async def get_reviewers(db: AsyncSession, skip: int = 0, limit: int = 100):
     result = await db.execute(select(models.Reviewer).offset(skip).limit(limit))
     return result.scalars().all()
+
 
 async def create_reviewer(db: AsyncSession, reviewer: schemas.ReviewerCreate):
     db_reviewer = models.Reviewer(**reviewer.dict())
@@ -19,14 +24,19 @@ async def create_reviewer(db: AsyncSession, reviewer: schemas.ReviewerCreate):
     await db.refresh(db_reviewer)
     return db_reviewer
 
+
 # CRUD functions for Product
 async def get_product(db: AsyncSession, product_id: int):
-    result = await db.execute(select(models.Product).where(models.Product.product_id == product_id))
+    result = await db.execute(
+        select(models.Product).where(models.Product.product_id == product_id)
+    )
     return result.scalars().first()
+
 
 async def get_products(db: AsyncSession, skip: int = 0, limit: int = 100):
     result = await db.execute(select(models.Product).offset(skip).limit(limit))
     return result.scalars().all()
+
 
 async def create_product(db: AsyncSession, product: schemas.ProductCreate):
     db_product = models.Product(**product.dict())
@@ -35,14 +45,19 @@ async def create_product(db: AsyncSession, product: schemas.ProductCreate):
     await db.refresh(db_product)
     return db_product
 
+
 # CRUD functions for Review
 async def get_review(db: AsyncSession, review_id: int):
-    result = await db.execute(select(models.Review).where(models.Review.review_id == review_id))
+    result = await db.execute(
+        select(models.Review).where(models.Review.review_id == review_id)
+    )
     return result.scalars().first()
+
 
 async def get_reviews(db: AsyncSession, skip: int = 0, limit: int = 100):
     result = await db.execute(select(models.Review).offset(skip).limit(limit))
     return result.scalars().all()
+
 
 async def create_review(db: AsyncSession, review: schemas.ReviewCreate):
     db_review = models.Review(**review.dict())
@@ -51,8 +66,11 @@ async def create_review(db: AsyncSession, review: schemas.ReviewCreate):
     await db.refresh(db_review)
     return db_review
 
+
 # Update functions
-async def update_reviewer(db: AsyncSession, reviewer_id: int, reviewer_update: schemas.ReviewerCreate):
+async def update_reviewer(
+    db: AsyncSession, reviewer_id: int, reviewer_update: schemas.ReviewerCreate
+):
     db_reviewer = await get_reviewer(db, reviewer_id)
     if not db_reviewer:
         return None
@@ -62,7 +80,10 @@ async def update_reviewer(db: AsyncSession, reviewer_id: int, reviewer_update: s
     await db.refresh(db_reviewer)
     return db_reviewer
 
-async def update_product(db: AsyncSession, product_id: int, product_update: schemas.ProductCreate):
+
+async def update_product(
+    db: AsyncSession, product_id: int, product_update: schemas.ProductCreate
+):
     db_product = await get_product(db, product_id)
     if not db_product:
         return None
@@ -72,7 +93,10 @@ async def update_product(db: AsyncSession, product_id: int, product_update: sche
     await db.refresh(db_product)
     return db_product
 
-async def update_review(db: AsyncSession, review_id: int, review_update: schemas.ReviewCreate):
+
+async def update_review(
+    db: AsyncSession, review_id: int, review_update: schemas.ReviewCreate
+):
     db_review = await get_review(db, review_id)
     if not db_review:
         return None
@@ -81,6 +105,7 @@ async def update_review(db: AsyncSession, review_id: int, review_update: schemas
     await db.commit()
     await db.refresh(db_review)
     return db_review
+
 
 # Delete functions
 async def delete_reviewer(db: AsyncSession, reviewer_id: int):
@@ -91,6 +116,7 @@ async def delete_reviewer(db: AsyncSession, reviewer_id: int):
     await db.commit()
     return db_reviewer
 
+
 async def delete_product(db: AsyncSession, product_id: int):
     db_product = await get_product(db, product_id)
     if not db_product:
@@ -98,6 +124,7 @@ async def delete_product(db: AsyncSession, product_id: int):
     await db.delete(db_product)
     await db.commit()
     return db_product
+
 
 async def delete_review(db: AsyncSession, review_id: int):
     db_review = await get_review(db, review_id)
