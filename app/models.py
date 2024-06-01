@@ -1,16 +1,17 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Boolean,
-    Float,
-    Text,
-    ForeignKey,
-    DateTime,
-)
+from sqlalchemy import Column, Integer, String, Boolean, Float, Text, ForeignKey, DateTime
 from sqlalchemy.orm import relationship, backref
 from .database import Base
+from sqlalchemy.types import UserDefinedType
 
+class Vector(UserDefinedType):
+    def get_col_spec(self):
+        return "vector(768)"
+    
+    def bind_expression(self, bindvalue):
+        return bindvalue
+
+    def column_expression(self, col):
+        return col
 
 class Reviewer(Base):
     __tablename__ = "reviewer"
@@ -77,6 +78,7 @@ class Product(Base):
     irritation_level_not_irritating = Column(Integer, nullable=True)
     irritation_level_average = Column(Integer, nullable=True)
     irritation_level_irritating = Column(Integer, nullable=True)
+    product_name_embedding = Column(Vector, nullable=True) 
 
     reviews = relationship(
         "Review", backref=backref("product"), cascade="all, delete-orphan"
@@ -100,3 +102,4 @@ class Review(Base):
     spreadability_review = Column(String(255), nullable=True)
     review_content = Column(Text, nullable=True)
     review_date = Column(DateTime, nullable=True)
+    review_content_embedding = Column(Vector, nullable=True) 

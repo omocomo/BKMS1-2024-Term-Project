@@ -14,8 +14,9 @@ class ReviewBase(BaseModel):
     irritation_level_review: str
     cleansing_power_review: Optional[str] = None
     spreadability_review: Optional[str] = None
-    review_content: str
+    review_content: Optional[str] = None
     review_date: Optional[datetime] = None
+    review_content_embedding: Optional[List[float]] = None
 
 
 class ReviewCreate(ReviewBase):
@@ -99,6 +100,7 @@ class ProductBase(BaseModel):
     irritation_level_not_irritating: Optional[int] = None
     irritation_level_average: Optional[int] = None
     irritation_level_irritating: Optional[int] = None
+    product_name_embedding: Optional[List[float]] = None
 
 
 class ProductCreate(ProductBase):
