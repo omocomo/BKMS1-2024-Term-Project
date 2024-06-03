@@ -4,6 +4,7 @@ from sqlalchemy.orm import joinedload
 from . import crud, schemas, recsys
 from .database import engine, Base, get_db
 from typing import List
+from sqlalchemy import text
 
 app = FastAPI()
 
@@ -13,6 +14,27 @@ app = FastAPI()
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # 시퀀스 값을 최대값보다 높은 값으로 설정
+        await conn.execute(
+            text(
+                """
+            DO $$
+            DECLARE
+                rec RECORD;
+            BEGIN
+                FOR rec IN (SELECT c.relname AS sequence_name, t.relname AS table_name, a.attname AS column_name
+                            FROM pg_class c
+                            JOIN pg_depend d ON d.objid = c.oid
+                            JOIN pg_class t ON t.oid = d.refobjid
+                            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
+                            WHERE c.relkind = 'S') LOOP
+                    EXECUTE 'SELECT setval(''' || rec.sequence_name || ''', COALESCE((SELECT MAX(' || rec.column_name || ') + 1 FROM ' || rec.table_name || '), 1), false)';
+                END LOOP;
+            END
+            $$;
+            """
+            )
+        )
 
 
 # 간단한 테스트 엔드포인트 추가
@@ -160,7 +182,11 @@ async def delete_review(review_id: int, db: AsyncSession = Depends(get_db)):
 
 @app.get("/recsys/{query}")
 async def recsys_product(query: str):
-    top_products = recsys.get_top_products_by_similarity(query, alpha=1.0, beta=1.0, gamma=1.5, top_n=10)
-    recsys.create_view_from_df(top_products, 'top_product_view')
-    recommend = recsys.execute_custom_query("SELECT product_id, product_name FROM top_product_view;")
+    top_products = recsys.get_top_products_by_similarity(
+        query, alpha=1.0, beta=1.0, gamma=1.5, top_n=10
+    )
+    recsys.create_view_from_df(top_products, "top_product_view")
+    recommend = recsys.execute_custom_query(
+        "SELECT product_id, product_name FROM top_product_view;"
+    )
     return recommend.to_dict(orient="records")
