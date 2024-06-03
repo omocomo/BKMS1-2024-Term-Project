@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from . import crud, schemas
+from . import crud, schemas, recsys
 from .database import engine, Base, get_db
 from typing import List
 
@@ -156,3 +156,11 @@ async def delete_review(review_id: int, db: AsyncSession = Depends(get_db)):
     if db_review is None:
         raise HTTPException(status_code=404, detail="Review not found")
     return db_review
+
+
+@app.get("/recsys/{query}")
+async def recsys_product(query: str):
+    top_products = recsys.get_top_products_by_similarity(query, alpha=1.0, beta=1.0, gamma=1.5, top_n=10)
+    recsys.create_view_from_df(top_products, 'top_product_view')
+    recommend = recsys.execute_custom_query("SELECT product_id, product_name FROM top_product_view;")
+    return recommend.to_dict(orient="records")
