@@ -2,6 +2,7 @@ from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from . import models, schemas
+import ast
 
 
 # CRUD functions for Reviewer
@@ -52,12 +53,22 @@ async def get_product(db: AsyncSession, product_id: int):
     result = await db.execute(
         select(models.Product).where(models.Product.product_id == product_id)
     )
-    return result.scalars().first()
+    db_product = result.scalars().first()
+    db_product.product_name_embedding = ast.literal_eval(
+        db_product.product_name_embedding
+    )
+
+    return db_product
 
 
 async def get_products(db: AsyncSession, skip: int = 0, limit: int = 100):
     result = await db.execute(select(models.Product).offset(skip).limit(limit))
-    return result.scalars().all()
+    db_products = result.scalars().all()
+    for db_product in db_products:
+        db_product.product_name_embedding = ast.literal_eval(
+            db_product.product_name_embedding
+        )
+    return db_products
 
 
 async def create_product(db: AsyncSession, product: schemas.ProductCreate):
@@ -95,12 +106,24 @@ async def get_review(db: AsyncSession, review_id: int):
     result = await db.execute(
         select(models.Review).where(models.Review.review_id == review_id)
     )
-    return result.scalars().first()
+    db_review = result.scalars().first()
+    if db_review:
+        db_review.review_content_embedding = ast.literal_eval(
+            db_review.review_content_embedding
+        )
+    return db_review
 
 
 async def get_reviews(db: AsyncSession, skip: int = 0, limit: int = 100):
     result = await db.execute(select(models.Review).offset(skip).limit(limit))
-    return result.scalars().all()
+    db_reviews = result.scalars().all()
+
+    for db_review in db_reviews:
+        db_review.review_content_embedding = ast.literal_eval(
+            db_review.review_content_embedding
+        )
+
+    return db_reviews
 
 
 async def create_review(db: AsyncSession, review: schemas.ReviewCreate):
