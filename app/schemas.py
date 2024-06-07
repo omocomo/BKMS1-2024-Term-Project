@@ -16,7 +16,6 @@ class ReviewBase(BaseModel):
     spreadability_review: Optional[str] = None
     review_content: Optional[str] = None
     review_date: Optional[datetime] = None
-    review_content_embedding: Optional[List[float]] = None
 
 
 class ReviewCreate(ReviewBase):
@@ -26,6 +25,7 @@ class ReviewCreate(ReviewBase):
 
 class Review(ReviewBase):
     review_id: int
+    review_content_embedding: Optional[List[float]] = None
 
     class Config:
         orm_mode = True
@@ -66,7 +66,6 @@ class ReviewerCreate(ReviewerBase):
 
 class Reviewer(ReviewerBase):
     reviewer_id: int
-    # reviews: List[Review] = []
 
     class Config:
         orm_mode = True
@@ -100,7 +99,6 @@ class ProductBase(BaseModel):
     irritation_level_not_irritating: Optional[int] = None
     irritation_level_average: Optional[int] = None
     irritation_level_irritating: Optional[int] = None
-    product_name_embedding: Optional[List[float]] = None
 
 
 class ProductCreate(ProductBase):
@@ -109,7 +107,7 @@ class ProductCreate(ProductBase):
 
 class Product(ProductBase):
     product_id: int
-    # reviews: List[Review] = []
+    product_name_embedding: Optional[List[float]] = None
 
     class Config:
         orm_mode = True

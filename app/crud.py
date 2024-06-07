@@ -3,6 +3,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from . import models, schemas
 import ast
+from sentence_transformers import SentenceTransformer
+
+model = SentenceTransformer("bespin-global/klue-sroberta-base-continue-learning-by-mnr")
+
+
+def generate_embedding(text):
+    return str(model.encode([text])[0].tolist())
 
 
 # CRUD functions for Reviewer
@@ -72,10 +79,20 @@ async def get_products(db: AsyncSession, skip: int = 0, limit: int = 100):
 
 
 async def create_product(db: AsyncSession, product: schemas.ProductCreate):
-    db_product = models.Product(**product.dict())
+    ## whenever product is created, generate embedding for product name
+    product_dict = product.dict()
+    embedding = generate_embedding(product_dict.get("product_name"))
+    product_dict["product_name_embedding"] = embedding
+    db_product = models.Product(**product_dict)
+
     db.add(db_product)
     await db.commit()
     await db.refresh(db_product)
+
+    ## for pydantic validation, convert string to list
+    db_product.product_name_embedding = ast.literal_eval(
+        db_product.product_name_embedding
+    )
     return db_product
 
 
@@ -87,8 +104,14 @@ async def update_product(
         return None
     for key, value in product_update.dict().items():
         setattr(db_product, key, value)
+    db_product.product_name_embedding = generate_embedding(db_product.product_name)
+
     await db.commit()
     await db.refresh(db_product)
+
+    db_product.product_name_embedding = ast.literal_eval(
+        db_product.product_name_embedding
+    )
     return db_product
 
 
@@ -127,10 +150,20 @@ async def get_reviews(db: AsyncSession, skip: int = 0, limit: int = 100):
 
 
 async def create_review(db: AsyncSession, review: schemas.ReviewCreate):
-    db_review = models.Review(**review.dict())
+    ## whenever review is created, generate embedding for review content
+    review_dict = review.dict()
+    embedding = generate_embedding(review_dict.get("review_content"))
+    review_dict["review_content_embedding"] = embedding
+
+    db_review = models.Review(**review_dict)
     db.add(db_review)
     await db.commit()
     await db.refresh(db_review)
+
+    ## for pydantic validation, convert string to list
+    db_review.review_content_embedding = ast.literal_eval(
+        db_review.review_content_embedding
+    )
     return db_review
 
 
@@ -142,8 +175,12 @@ async def update_review(
         return None
     for key, value in review_update.dict().items():
         setattr(db_review, key, value)
+    db_review.review_content_embedding = generate_embedding(db_review.review_content)
     await db.commit()
     await db.refresh(db_review)
+    db_review.review_content_embedding = ast.literal_eval(
+        db_review.review_content_embedding
+    )
     return db_review
 
 
