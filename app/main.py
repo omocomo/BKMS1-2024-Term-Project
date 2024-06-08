@@ -67,6 +67,9 @@ async def startup():
         """
         await conn.execute(text(trigger_sql))
 
+        # 인덱스 생성
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_reviewer_id ON review (reviewer_id);"))
+
 
 # 간단한 테스트 엔드포인트 추가
 @app.get("/test_db_connection/")
@@ -221,40 +224,22 @@ async def get_reviews_by_product_and_keyword(
     return reviews.to_dict(orient="records")
 
 
-@app.get("/reviews/product/{product_name}/rating")
-async def get_reviews_by_rating(product_name: str, db: AsyncSession = Depends(get_db)):
-    reviews = await review_search.get_reviews_by_rating(db, product_name)
+@app.get("/reviews/product/{product_id}/{rating}")
+async def get_reviews_by_rating(product_id: int, rating: int, db: AsyncSession = Depends(get_db)):
+    reviews = await review_search.get_reviews_by_rating(db, product_id, rating)
     return reviews.to_dict(orient="records")
 
 
 @app.get("/reviews/dates/")
-async def get_reviews_by_date_range(
-    start_date: datetime, end_date: datetime, db: AsyncSession = Depends(get_db)
-):
+async def get_reviews_by_date_range(start_date: datetime, end_date: datetime, db: AsyncSession = Depends(get_db)):
     reviews = await review_search.get_reviews_by_date_range(db, start_date, end_date)
     return reviews.to_dict(orient="records")
 
 
-@app.get("/reviews/product/summary")
-async def get_review_count_and_average_star_by_product(
-    db: AsyncSession = Depends(get_db),
-):
-    reviews = await review_search.get_review_count_and_average_star_by_product(db)
-    return reviews.to_dict(orient="records")
-
-
-@app.get("/reviews/skin_type/{skin_type}")
-async def get_reviews_by_skin_type(skin_type: str, db: AsyncSession = Depends(get_db)):
-    reviews = await review_search.get_reviews_by_skin_type(db, skin_type)
-    return reviews.to_dict(orient="records")
-
-
-@app.get("/reviews/similar")
-async def get_similar_reviews(
-    review_content_embedding, db: AsyncSession = Depends(get_db)
-):
-    reviews = await review_search.get_similar_reviews(db, review_content_embedding)
-    return reviews.to_dict(orient="records")
+@app.get("/reviews/summary/{product_id}")
+async def get_review_count_and_average_star_by_product(product_id: int, db: AsyncSession = Depends(get_db)):
+    products = await review_search.get_review_count_and_average_star_by_product(db, product_id)
+    return products.to_dict(orient="records")
 
 
 @app.get("/reviews/brand/{brand_name}/ratios")  # response_model=List[schemas.Review]
