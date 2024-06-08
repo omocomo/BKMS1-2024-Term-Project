@@ -12,110 +12,26 @@ api_url = "http://localhost:8000"
 page = st.sidebar.selectbox("Select a page", ["Reviewers", "Reviews", "Reviews Search", "Recommendation"])
 
 # @st.cache_data
-# def fetch_reviewer_info(reviewer_id):
-#     response = requests.get(f"{api_url}/reviewers/{reviewer_id}")
-#     if response.status_code == 404:
-#         return None
-#     else:
-#         return response.json()
-
-# def create_update_reviewer(action):
-#     st.header(action + " Reviewer")
-#     reviewer_id = st.number_input("Reviewer ID", min_value=0, step=1)
-#     reviewer_info = fetch_reviewer_info(reviewer_id) if action == "Update" else None
-
-#     if action == "Update" and reviewer_info is None:
-#         st.warning("Reviewer not found.")
-
-#     name = st.text_input("Name", value=reviewer_info['reviewer_name'] if reviewer_info else "")
-#     skin_types = ["Trouble Prone", "Oily", "Sensitive", "Dry", "Mildly Dry", "Combination", "Normal"]
-#     personal_colors = ["Spring Warm", "Cool", "Autumn Warm", "Winter Cool", "Summer Cool", "Warm"]
-#     skin_concerns = ["Keratin", "Pores", "Blackheads", "Excess Sebum", "Whitening", "Redness", 
-#                      "Wrinkles", "Trouble", "Dark Circles", "Elasticity", "Atopy", "Spots"]
-
-#     col1, col2, col3 = st.columns([0.8, 1, 1.5])
-
-#     with col1:
-#         st.subheader("Skin Type")
-#         skin_type_values = {type.lower().replace(" ", "_"): st.checkbox(type, value=reviewer_info.get(f'skin_type_{type.lower().replace(" ", "_")}', False) if reviewer_info else False) for type in skin_types}
-    
-#     with col2:
-#         st.subheader("Personal Color")
-#         personal_color_values = {color.lower().replace(" ", "_"): st.checkbox(color, value=reviewer_info.get(f'personal_color_{color.lower().replace(" ", "_")}', False) if reviewer_info else False) for color in personal_colors}
-    
-#     with col3:
-#         st.subheader("Skin Concern")
-#         col4, col5 = st.columns(2)
-#         with col4:
-#             skin_concern_values = {concern.lower().replace(" ", "_"): st.checkbox(concern, value=reviewer_info.get(f'skin_concern_{concern.lower().replace(" ", "_")}', False) if reviewer_info else False) for concern in skin_concerns[:6]}
-#         with col5:
-#             skin_concern_values = {concern.lower().replace(" ", "_"): st.checkbox(concern, value=reviewer_info.get(f'skin_concern_{concern.lower().replace(" ", "_")}', False) if reviewer_info else False) for concern in skin_concerns[6:]}
-
-#     if st.button(action):
-#         response = None
-#         if action == "Create":
-#             response = requests.post(f"{api_url}/reviewers/", json={**skin_type_values, **personal_color_values, **skin_concern_values, "reviewer_name": name})
-#         elif action == "Update":
-#             response = requests.put(f"{api_url}/reviewers/{reviewer_id}", json={**skin_type_values, **personal_color_values, **skin_concern_values, "reviewer_name": name})
-
-#         if response:
-#             response_json = response.json()
-#             reviewer = {
-#                 "reviewer_id": response_json.get("reviewer_id"),
-#                 "reviewer_name": response_json.get("reviewer_name")
-#             }
-#             reviewer_info = [' '.join(key.replace("_", " ").capitalize().split()[2:]) for key, value in response_json.items() if value == True]
-#             st.text(f"Reviewer ID: {reviewer['reviewer_id']}")
-#             st.text(f"Reviewer Name: {reviewer['reviewer_name']}")
-#             st.text("Selected Personal Info:")
-#             st.write(", ".join([f"{value.capitalize()}" for value in reviewer_info]))
-#             st.text(f"Reviewer {action.lower()}ed successfully!")
-
-
-# # Reviewer CRUD
-# if page == "Reviewers":
-#     st.title("Reviewers Management")
-
-#     action = st.radio("Action", ["Create", "Read", "Update", "Delete"])
-
-#     if action in ["Create", "Update"]:
-#         create_update_reviewer(action)
-#     elif action == "Read":
-#         st.header("Read Reviewers")
-#         reviewer_id = st.number_input("Reviewer ID", min_value=0, step=1)
-#         if st.button("Read"):
-#             reviewer_info = fetch_reviewer_info(reviewer_id)
-#             if reviewer_info:
-#                 st.text(f"Reviewer ID: {reviewer_info['reviewer_id']}")
-#                 st.text(f"Reviewer Name: {reviewer_info['reviewer_name']}")
-#                 st.text("Selected Personal Info:")
-#                 selected_info = [' '.join(key.replace("_", " ").capitalize().split()[2:]) for key, value in reviewer_info.items() if value == True]
-#                 st.write(", ".join([f"{value.capitalize()}" for value in selected_info]))
-#                 st.text("Reviewer read successfully!")
-#             else:
-#                 st.warning("Reviewer not found.")
-#     elif action == "Delete":
-#         st.header("Delete Reviewers")
-#         reviewer_id = st.number_input("Reviewer ID", min_value=0, step=1)
-#         reviewer_info = fetch_reviewer_info(reviewer_id)
-#         if reviewer_info:
-#             st.text(f"Reviewer ID: {reviewer_info['reviewer_id']}")
-#             st.text(f"Reviewer Name: {reviewer_info['reviewer_name']}")
-#         else:
-#             st.warning("Reviewer not found.")
-#         if st.button("Delete"):
-#             response = requests.delete(f"{api_url}/reviewers/{reviewer_id}")
-#             st.text("Reviewer deleted successfully!")
-
-#############################################################################################################
-
-# @st.cache_data
 def fetch_reviewer_info(reviewer_id):
     response = requests.get(f"{api_url}/reviewers/{reviewer_id}")
     if response.status_code == 404:
         return None
     else:
         return response.json()
+    
+def fetch_product_info(product_id):
+    response = requests.get(f"{api_url}/products/{product_id}")
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return None
+    
+def fetch_review_info(review_id):
+    response = requests.get(f"{api_url}/reviews/{review_id}")
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return None
 
 # Reviewer CRUD
 if page == "Reviewers":
@@ -391,69 +307,214 @@ elif page == "Reviews":
 
     if action == "Create":
         st.header("Create Review")
-        product_id = st.number_input("Product ID", min_value=0, step=1)
-        reviewer_id = st.number_input("Reviewer ID", min_value=0, step=1)
-        rating = st.number_input("Rating", min_value=0, max_value=5, step=1)
-        content = st.text_area("Content")
-        used_over_one_month = st.checkbox("Used over one month")
-        if st.button("Create"):
-            response = requests.post(
-                f"{api_url}/reviews/",
-                json={
-                    "product_id": product_id,
-                    "reviewer_id": reviewer_id,
-                    "rating": rating,
-                    "content": content,
-                    "used_over_one_month": used_over_one_month
+        # User input fields for the review
+
+        product_id = st.number_input("Product ID", min_value=1, step=1)
+        reviewer_id = st.number_input("Reviewer ID", min_value=1, step=1)
+
+        if st.button("Write a review of the product"):
+            product_info = fetch_product_info(product_id)
+            reviewer_info = fetch_reviewer_info(reviewer_id)
+            
+            if product_info and reviewer_info:
+                st.session_state['product_name'] = product_info['product_name']
+                st.session_state['reviewer_name'] = reviewer_info['reviewer_name']
+                st.success("Product and Reviewer info fetched successfully!")
+            else:
+                st.error("Error fetching product or reviewer info.")
+
+        product_name = st.text_input("Product Name", value=st.session_state.get('product_name', ''))
+        reviewer_name = st.text_input("Reviewer Name", value=st.session_state.get('reviewer_name', ''))
+        rating = st.slider("Rating", 1, 5)
+        col1, col2 = st.columns(2)  
+        with col1:
+            used_over_one_month = st.checkbox("Used Over One Month")
+            skin_type_review = st.selectbox("Skin Type Review", ["Oily", "Dry", "Combination", "Sensitive", "Normal"])
+            skin_concern_review = st.selectbox("Skin Concern Review", ["Acne", "Wrinkles", "Dark Spots", "Dryness", "Redness"])
+            irritation_level_review = st.selectbox("Irritation Level Review", ["None", "Mild", "Moderate", "Severe"])
+        with col2:
+            repurchase_intention = st.checkbox("Repurchase Intention")
+            cleansing_power_review = st.selectbox("Cleansing Power Review", ["None", "Low", "Moderate", "High"], index=0)
+            spreadability_review = st.selectbox("Spreadability Review", ["None", "Poor", "Good", "Excellent"], index=0) 
+            review_date = st.date_input("Review Date", datetime.now().date())
+        review_content = st.text_area("Review Content")
+
+        # Review submission button
+        if st.button("Submit Review"):
+            review_data = {
+                "product_name": product_name,
+                "reviewer_name": reviewer_name,
+                "rating": rating,
+                "used_over_one_month": used_over_one_month,
+                "repurchase_intention": repurchase_intention,
+                "skin_type_review": skin_type_review,
+                "skin_concern_review": skin_concern_review,
+                "irritation_level_review": irritation_level_review,
+                "cleansing_power_review": cleansing_power_review,
+                "spreadability_review": spreadability_review,
+                "review_content": review_content,
+                "review_date": review_date.isoformat() if review_date else None,
+                "product_id": product_id,
+                "reviewer_id": reviewer_id
+            }
+            
+            response = requests.post(f"{api_url}/reviews", json=review_data)
+            
+            if response.status_code == 200:
+                reviews = response.json()
+                review = {
+                    "review_id": reviews.get("review_id"),
+                    "reviewer_name": reviews.get("reviewer_name"),
+                    "product_name": reviews.get("product_name"),
+                    "review_content": reviews.get("review_content")
                 }
-            )
-            st.write(response.json())
+                st.text(f"Review ID: {review['review_id']}")
+                st.text(f"Reviewer Name: {review['reviewer_name']}")
+                st.text(f"Product Name: {review['product_name']}")
+                st.text(f"Review: {review['review_content']}")
+                st.success("Review submitted successfully!")
+            else:
+                st.error("Error submitting review.")
 
     elif action == "Read":
         st.header("Read Reviews")
         review_id = st.number_input("Review ID", min_value=0, step=1)
         if st.button("Read"):
             response = requests.get(f"{api_url}/reviews/{review_id}")
-            print(response)
-            # response_json = response.json()
-            # review = {
-            #     "review_id": response_json.get("review_id"),
-            #     "reviewer_name": response_json.get("reviewer_name")
-            # }
-            # review_info = [' '.join(key.replace("_", " ").capitalize().split()[2:]) for key, value in response_json.items()[:-1] if value == True]
-            # st.text(f"Reviewer ID: {review['reviewer_id']}")
-            # st.text(f"Reviewer Name: {review['reviewer_name']}")
-            # st.write(", ".join([f"{value.capitalize()}" for value in review_info]))
-            # st.text("Review read successfully!")
-
-        # if st.button("Read All"):
-        #     response = requests.get(f"{api_url}/review/")
-        #     st.write(response.json())
+            if response.status_code == 200:
+                reviews = response.json()
+                review = {
+                    "review_id": reviews.get("review_id"),
+                    "reviewer_name": reviews.get("reviewer_name"),
+                    "product_name": reviews.get("product_name"),
+                    "review_content": reviews.get("review_content")
+                }
+                st.text(f"Review ID: {review['review_id']}")
+                st.text(f"Reviewer Name: {review['reviewer_name']}")
+                st.text(f"Product Name: {review['product_name']}")
+                st.text(f"Review: {review['review_content']}")
+                st.success("Review read successfully!")
+            else:
+                st.error("Error reading review.")
 
 
     elif action == "Update":
         st.header("Update Review")
         review_id = st.number_input("Review ID", min_value=0, step=1)
-        rating = st.number_input("New Rating", min_value=0, max_value=5, step=1)
-        content = st.text_area("New Content")
-        used_over_one_month = st.checkbox("New Used over one month")
-        if st.button("Update"):
+        
+        if st.button("Fetch Review"):
+            review = fetch_review_info(review_id)
+            if review:
+                st.session_state['product_name'] = review['product_name']
+                st.session_state['reviewer_name'] = review['reviewer_name']
+                st.session_state['rating'] = review['rating']
+                st.session_state['used_over_one_month'] = review['used_over_one_month']
+                st.session_state['repurchase_intention'] = review['repurchase_intention']
+                st.session_state['skin_type_review'] = review['skin_type_review']
+                st.session_state['skin_concern_review'] = review['skin_concern_review']
+                st.session_state['irritation_level_review'] = review['irritation_level_review']
+                st.session_state['cleansing_power_review'] = review['cleansing_power_review']
+                st.session_state['spreadability_review'] = review['spreadability_review']
+                st.session_state['review_content'] = review['review_content']
+                st.session_state['review_date'] = review['review_date']
+                st.session_state['product_id'] = review['product_id']
+                st.session_state['reviewer_id'] = review['reviewer_id']
+                st.success("Review data fetched successfully!")
+            else:
+                st.error("Error fetching review data.")
+
+        st.text(f"Reviewer Name: {st.session_state.get('reviewer_name')}")
+        st.text(f"Product Name: {st.session_state.get('product_name')}")
+        rating = st.slider("New Rating", 1, 5, value=st.session_state.get('rating', 1))
+        col1, col2 = st.columns(2)  
+        with col1:
+            used_over_one_month = st.checkbox("Used over one month", value=st.session_state.get('used_over_one_month', False))
+        with col2:
+            repurchase_intention = st.checkbox("Repurchase Intention", value=st.session_state.get('repurchase_intention', False))
+        review_content = st.text_area("New Content", value=st.session_state.get('review_content', ''))
+
+        if st.button("Update Review"):
             response = requests.put(
                 f"{api_url}/reviews/{review_id}",
                 json={
+                    "product_name": st.session_state['product_name'],
+                    "reviewer_name": st.session_state['reviewer_name'],
                     "rating": rating,
-                    "content": content,
-                    "used_over_one_month": used_over_one_month
+                    "used_over_one_month": used_over_one_month,
+                    "repurchase_intention": repurchase_intention,
+                    "skin_type_review": st.session_state['skin_type_review'],
+                    "skin_concern_review": st.session_state['skin_concern_review'],
+                    "irritation_level_review": st.session_state['irritation_level_review'],
+                    "cleansing_power_review": st.session_state['cleansing_power_review'],
+                    "spreadability_review": st.session_state['spreadability_review'],
+                    "review_content": review_content,
+                    "review_date": st.session_state['review_date'],
+                    "product_id": st.session_state['product_id'],
+                    "reviewer_id": st.session_state['reviewer_id']
                 }
             )
-            st.write(response.json())
+            if response.status_code == 200:
+                reviews = response.json()
+                review = {
+                    "review_id": reviews.get("review_id"),
+                    "reviewer_name": reviews.get("reviewer_name"),
+                    "product_name": reviews.get("product_name"),
+                    "review_content": reviews.get("review_content")
+                }
+                st.text(f"Review ID: {review['review_id']}")
+                st.text(f"Reviewer Name: {review['reviewer_name']}")
+                st.text(f"Product Name: {review['product_name']}")
+                st.text(f"Review: {review['review_content']}")
+                st.success("Review updated successfully!")
+            else:
+                st.error("Error updating review.")
 
     elif action == "Delete":
         st.header("Delete Review")
         review_id = st.number_input("Review ID", min_value=0, step=1)
+        if st.button("Fetch Review"):
+            review = fetch_review_info(review_id)
+            if review:
+                st.session_state['product_name'] = review['product_name']
+                st.session_state['reviewer_name'] = review['reviewer_name']
+                st.session_state['rating'] = review['rating']
+                st.session_state['used_over_one_month'] = review['used_over_one_month']
+                st.session_state['repurchase_intention'] = review['repurchase_intention']
+                st.session_state['skin_type_review'] = review['skin_type_review']
+                st.session_state['skin_concern_review'] = review['skin_concern_review']
+                st.session_state['irritation_level_review'] = review['irritation_level_review']
+                st.session_state['cleansing_power_review'] = review['cleansing_power_review']
+                st.session_state['spreadability_review'] = review['spreadability_review']
+                st.session_state['review_content'] = review['review_content']
+                st.session_state['review_date'] = review['review_date']
+                st.session_state['product_id'] = review['product_id']
+                st.session_state['reviewer_id'] = review['reviewer_id']
+                st.text(f"Reviewer Name: {st.session_state.get('reviewer_name')}")
+                st.text(f"Product Name: {st.session_state.get('product_name')}")
+                st.text(f"Review: {st.session_state.get('review_content')}")
+                st.success("Review data fetched successfully!")
+            else:
+                st.error("Error fetching review data.")
+
+        
+
         if st.button("Delete"):
             response = requests.delete(f"{api_url}/reviews/{review_id}")
-            st.write(response.json())
+            if response.status_code == 200:
+                reviews = response.json()
+                review = {
+                    "review_id": reviews.get("review_id"),
+                    "reviewer_name": reviews.get("reviewer_name"),
+                    "product_name": reviews.get("product_name"),
+                    "review_content": reviews.get("review_content")
+                }
+                st.text(f"Review ID: {review['review_id']}")
+                st.text(f"Reviewer Name: {review['reviewer_name']}")
+                st.text(f"Product Name: {review['product_name']}")
+                st.text(f"Review: {review['review_content']}")
+                st.success("Review deleted successfully!")
+            else:
+                st.error("Error deleting review.")
 
 # Reviews Search System
 elif page == "Reviews Search":
