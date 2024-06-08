@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 from . import crud, schemas, recsys
 from .database import engine, Base, get_db
 from typing import List
@@ -35,6 +34,35 @@ async def startup():
             """
             )
         )
+        # 트리거 함수 생성
+        trigger_function_sql = """
+        CREATE OR REPLACE FUNCTION update_product_review_stats()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            -- 제품 평점 및 리뷰 수 업데이트
+            UPDATE product
+            SET number_of_reviews = number_of_reviews + 1,
+                review_rating = CEIL((SELECT AVG(rating) FROM review WHERE product_id = NEW.product_id))
+            WHERE product_id = NEW.product_id;
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+        """
+        await conn.execute(text(trigger_function_sql))
+
+        # 기존 트리거 삭제
+        await conn.execute(
+            text("DROP TRIGGER IF EXISTS review_insert_trigger ON review")
+        )
+
+        # 트리거 생성
+        trigger_sql = """
+        CREATE TRIGGER review_insert_trigger
+        AFTER INSERT ON review
+        FOR EACH ROW
+        EXECUTE FUNCTION update_product_review_stats();
+        """
+        await conn.execute(text(trigger_sql))
 
 
 # 간단한 테스트 엔드포인트 추가
