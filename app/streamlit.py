@@ -3,6 +3,9 @@ import requests
 import pandas as pd
 from datetime import datetime
 from PIL import Image
+import matplotlib.pyplot as plt
+import plotly.express as px
+import seaborn as sns
 
 # 참고용 #
 
@@ -57,6 +60,49 @@ def fetch_review_info(review_id):
         return response.json()
     else:
         return None
+    
+# 제품 리뷰 통계를 시각화하는 함수
+def plot_review_statistics(df):
+    # Star ratios dictionary
+    star_ratios = {
+        '5 Star': df['review_5_star_ratio'].iloc[0],
+        '4 Star': df['review_4_star_ratio'].iloc[0],
+        '3 Star': df['review_3_star_ratio'].iloc[0],
+        '2 Star': df['review_2_star_ratio'].iloc[0],
+        '1 Star': df['review_1_star_ratio'].iloc[0]
+    }
+
+    # Convert to DataFrame for easier plotting with seaborn
+    star_ratios_df = pd.DataFrame(list(star_ratios.items()), columns=['Star Rating', 'Ratio'])
+    
+    # Set style
+    sns.set(style="whitegrid")
+    
+    # Create figure and axes
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    # Bar plot
+    sns.barplot(x='Star Rating', y='Ratio', data=star_ratios_df, palette='viridis', ax=ax)
+    
+    # Add titles and labels
+    ax.set_title('Review Star Rating Ratios', fontsize=16)
+    ax.set_xlabel('Star Rating', fontsize=14)
+    ax.set_ylabel('Ratio (%)', fontsize=14)
+    
+    # Customize tick parameters
+    ax.tick_params(axis='x', labelsize=12)
+    ax.tick_params(axis='y', labelsize=12)
+    
+    # Display values on bars
+    for p in ax.patches:
+        ax.annotate(format(p.get_height(), '.1f'), 
+                   (p.get_x() + p.get_width() / 2., p.get_height()), 
+                   ha = 'center', va = 'center', 
+                   xytext = (0, 10), 
+                   textcoords = 'offset points')
+    
+    # Display plot in Streamlit
+    st.pyplot(fig)
 
 # Reviewer CRUD
 if page == "Reviewers":
@@ -153,16 +199,19 @@ if page == "Reviewers":
         if st.button("Read"):
             response = requests.get(f"{api_url}/reviewers/{reviewer_id}")
             response_json = response.json()
-            reviewer = {
-                "reviewer_id": response_json.get("reviewer_id"),
-                "reviewer_name": response_json.get("reviewer_name")
-            }
-            reviewer_info = [' '.join(key.replace("_", " ").capitalize().split()[2:]) for key, value in response_json.items() if value == True]
-            st.text(f"Reviewer ID: {reviewer['reviewer_id']}")
-            st.text(f"Reviewer Name: {reviewer['reviewer_name']}")
-            st.text("Selected Personal Info:")
-            st.write(", ".join([f"{value.capitalize()}" for value in reviewer_info]))
-            st.text("Reviewer read successfully!")
+            if response_json.get("reviewer_id") != None:
+                reviewer = {
+                    "reviewer_id": response_json.get("reviewer_id"),
+                    "reviewer_name": response_json.get("reviewer_name")
+                }
+                reviewer_info = [' '.join(key.replace("_", " ").capitalize().split()[2:]) for key, value in response_json.items() if value == True]
+                st.text(f"Reviewer ID: {reviewer['reviewer_id']}")
+                st.text(f"Reviewer Name: {reviewer['reviewer_name']}")
+                st.text("Selected Personal Info:")
+                st.write(", ".join([f"{value.capitalize()}" for value in reviewer_info]))
+                st.text("Reviewer read successfully!")
+            else:
+                st.error("No Reviewer")
 
         if st.button("Read All"):
             response = requests.get(f"{api_url}/reviewers/")
@@ -409,7 +458,7 @@ elif page == "Reviews":
             if response.status_code == 200:
                 reviews = response.json()
                 review = {
-                    "review_id": reviews.get("review_id"),
+                    "review_id": review_id,
                     "reviewer_name": reviews.get("reviewer_name"),
                     "product_name": reviews.get("product_name"),
                     "review_content": reviews.get("review_content")
@@ -545,53 +594,77 @@ elif page == "Reviews":
 elif page == "Reviews Search":
     st.title("Reviews Search")
     # 검색 조건 입력
-    search_type = st.selectbox("Search Type", ["By Product and Keyword", "By Rating", "By Date Range", "By Skin Type", "Brand Review Ratios"])
+    search_type = st.selectbox("Search Type", ["By Keyword", "By Rating", "By Date Range", "Product Review Statistic", "Brand Review Ratios"])
 
-    if search_type == "By Product and Keyword":
-        product_name = st.text_input("Product Name")
-        keyword = st.text_input("Keyword")
+    if search_type == "By Keyword":
+        col1, col2 = st.columns(2)  
+        with col1:
+            product_name = st.text_input("Keyword1")
+        with col2:
+            keyword = st.text_input("Keyword2")
         if st.button("Search"):
             response = requests.get(f"{api_url}/reviews/product/{product_name}/keyword/{keyword}")
-            if response.status_code == 200:
-                reviews = response.json()
-                df = pd.DataFrame(reviews)
+            products = response.json()
+            if len(products) != 0:
+                df = pd.DataFrame(products)
                 st.write(df)
             else:
-                st.error("Failed to fetch reviews")
+                st.error("Failed to search by keyword")
 
     elif search_type == "By Rating":
-        product_name = st.text_input("Product Name")
+        product_id = st.number_input("Product ID", min_value=0, step=1)
+        product_info = fetch_product_info(product_id)
+        if product_info:
+            st.session_state['product_name'] = product_info['product_name']
+            st.text(st.session_state['product_name'])
+        else:
+            st.error("Failed to search product")
+        rating = st.slider("Rating", 1, 5)
         if st.button("Search"):
-            response = requests.get(f"{api_url}/reviews/product/{product_name}/rating")
-            if response.status_code == 200:
-                reviews = response.json()
-                df = pd.DataFrame(reviews)
+            response = requests.get(f"{api_url}/reviews/product/{product_id}/{rating}")
+            products = response.json()
+            if len(products) != 0:
+                df = pd.DataFrame(products)
                 st.write(df)
             else:
-                st.error("Failed to fetch reviews")
+                st.error("Failed to search by rating")
 
     elif search_type == "By Date Range":
-        start_date = st.date_input("Start Date", datetime(2023, 1, 1))
-        end_date = st.date_input("End Date", datetime(2023, 12, 31))
+        col1, col2 = st.columns(2)  
+        with col1:
+            start_date = st.date_input("Start Date", datetime(2023, 1, 1))
+        with col2:
+            end_date = st.date_input("End Date", datetime(2023, 1, 31))
         if st.button("Search"):
             response = requests.get(f"{api_url}/reviews/dates/", params={"start_date": start_date, "end_date": end_date})
-            if response.status_code == 200:
+            reviews = response.json()
+            if len(reviews) != 0:
                 reviews = response.json()
                 df = pd.DataFrame(reviews)
                 st.write(df)
             else:
-                st.error("Failed to fetch reviews")
+                st.error("Failed to search by date range")
 
-    elif search_type == "By Skin Type":
-        skin_type = st.text_input("Skin Type")
+    elif search_type == "Product Review Statistic":
+        product_id = st.number_input("Product ID", min_value=0, step=1)
+        product_info = fetch_product_info(product_id)
+        if product_info:
+            st.session_state['product_name'] = product_info['product_name']
+            st.text(st.session_state['product_name'])
+        else:
+            st.error("Failed to search product")
         if st.button("Search"):
-            response = requests.get(f"{api_url}/reviews/skin_type/{skin_type}")
+            response = requests.get(f"{api_url}/reviews/summary/{product_id}")
             if response.status_code == 200:
-                reviews = response.json()
-                df = pd.DataFrame(reviews)
-                st.write(df)
+                products = response.json()
+                df = pd.DataFrame(products)
+                # 전체 리뷰 수 출력
+                total_reviews = df['number_of_reviews'].iloc[0]
+                st.write(f"Total Reviews: {total_reviews}")
+                # 리뷰 통계 그래프 그리기
+                plot_review_statistics(df)
             else:
-                st.error("Failed to fetch reviews")
+                st.error("Failed to search product review statistic")
 
     elif search_type == "Brand Review Ratios":
         brand_name = st.text_input("Brand Name")
@@ -600,9 +673,32 @@ elif page == "Reviews Search":
             if response.status_code == 200:
                 reviews = response.json()
                 df = pd.DataFrame(reviews)
-                st.write(df)
+                # st.write(df)
+                # 원그래프로 used_over_one_month_ratio 시각화
+                used_over_one_month_ratio = df.loc[0, 'used_over_one_month_ratio']
+                repurchase_intention_ratio = df.loc[0, 'repurchase_intention_ratio']
+                col1, col2 = st.columns(2)  
+                with col1:
+                    # 시각화
+                    fig1 = px.pie(
+                        values=[used_over_one_month_ratio, 1 - used_over_one_month_ratio],
+                        names=['Used Over One Month', 'Not Used Over One Month'],
+                        title='Used Over One Month Ratio',
+                        color=['Used Over One Month', 'Not Used Over One Month'],
+                        color_discrete_map={'Used Over One Month': 'mediumturquoise', 'Not Used Over One Month': 'lightgrey'}
+                    )
+                    st.plotly_chart(fig1)
+                with col2:
+                    fig2 = px.pie(
+                        values=[repurchase_intention_ratio, 1 - repurchase_intention_ratio],
+                        names=['Repurchase Intention', 'No Repurchase Intention'],
+                        title='Repurchase Intention Ratio',
+                        color=['Repurchase Intention', 'No Repurchase Intention'],
+                        color_discrete_map={'Repurchase Intention': 'cornflowerblue', 'No Repurchase Intention': 'lightgrey'}
+                    )
+                    st.plotly_chart(fig2)
             else:
-                st.error("Failed to fetch reviews")
+                st.error("Failed to search brand review ratios")
 
 # Recommendation System
 elif page == "Recommendation":
