@@ -148,7 +148,7 @@ async def create_review(
     return await crud.create_review(db=db, review=review)
 
 
-@app.get("/reviews/{review_id}", response_model=schemas.Review)
+@app.get("/reviews/{review_id}", response_model=schemas.ReviewCreate)
 async def read_review(review_id: int, db: AsyncSession = Depends(get_db)):
     db_review = await crud.get_review(db, review_id=review_id)
     if db_review is None:
