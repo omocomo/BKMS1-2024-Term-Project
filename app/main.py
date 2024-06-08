@@ -1,9 +1,12 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
-from . import crud, schemas, recsys
+from sqlalchemy.orm import joinedload
+from . import crud, schemas, recsys, review_search
 from .database import engine, Base, get_db
-from typing import List
+from typing import List, Dict, Any
 from sqlalchemy import text
+from datetime import datetime
+
 
 app = FastAPI()
 
@@ -208,13 +211,92 @@ async def delete_review(review_id: int, db: AsyncSession = Depends(get_db)):
     return db_review
 
 
-@app.get("/recsys/{query}")
-async def recsys_product(query: str):
-    top_products = recsys.get_top_products_by_similarity(
-        query, alpha=1.0, beta=1.0, gamma=1.5, top_n=10
+@app.get("/reviews/product/{product_name}/keyword/{keyword}")
+async def get_reviews_by_product_and_keyword(
+    product_name: str, keyword: str, db: AsyncSession = Depends(get_db)
+):
+    reviews = await review_search.get_reviews_by_product_and_keyword(
+        db, product_name, keyword
     )
-    recsys.create_view_from_df(top_products, "top_product_view")
-    recommend = recsys.execute_custom_query(
-        "SELECT product_id, product_name FROM top_product_view;"
+    return reviews.to_dict(orient="records")
+
+
+@app.get("/reviews/product/{product_name}/rating")
+async def get_reviews_by_rating(product_name: str, db: AsyncSession = Depends(get_db)):
+    reviews = await review_search.get_reviews_by_rating(db, product_name)
+    return reviews.to_dict(orient="records")
+
+
+@app.get("/reviews/dates/")
+async def get_reviews_by_date_range(
+    start_date: datetime, end_date: datetime, db: AsyncSession = Depends(get_db)
+):
+    reviews = await review_search.get_reviews_by_date_range(db, start_date, end_date)
+    return reviews.to_dict(orient="records")
+
+
+@app.get("/reviews/product/summary")
+async def get_review_count_and_average_star_by_product(
+    db: AsyncSession = Depends(get_db),
+):
+    reviews = await review_search.get_review_count_and_average_star_by_product(db)
+    return reviews.to_dict(orient="records")
+
+
+@app.get("/reviews/skin_type/{skin_type}")
+async def get_reviews_by_skin_type(skin_type: str, db: AsyncSession = Depends(get_db)):
+    reviews = await review_search.get_reviews_by_skin_type(db, skin_type)
+    return reviews.to_dict(orient="records")
+
+
+@app.get("/reviews/similar")
+async def get_similar_reviews(
+    review_content_embedding, db: AsyncSession = Depends(get_db)
+):
+    reviews = await review_search.get_similar_reviews(db, review_content_embedding)
+    return reviews.to_dict(orient="records")
+
+
+@app.get("/reviews/brand/{brand_name}/ratios")  # response_model=List[schemas.Review]
+async def get_brand_review_ratios(brand_name: str, db: AsyncSession = Depends(get_db)):
+    reviews = await review_search.get_brand_review_ratios(db, brand_name)
+    return reviews.to_dict(orient="records")
+
+
+@app.get("/recsys1/{query}")
+async def recsys_product_SS_CBFCF(
+    query: str,
+    user_vector: Dict[str, Any] = Body(...),
+    db: AsyncSession = Depends(get_db),
+):
+    recommend = await recsys.get_final_recommendations(db, user_vector, query)
+    filter_recommend = await recsys.get_top_products_by_category(db, recommend, query)
+    # await recsys.create_view_from_df(db, top_products, "top_product_view", query)
+    # recommend = await recsys.execute_custom_query(db, text("SELECT product_category, product_id, product_name FROM top_product_view;"))
+    return filter_recommend.to_dict(orient="records")
+
+
+@app.get("/recsys2")
+async def recsys_product_CBFCF(
+    user_vector: Dict[str, Any] = Body(...), db: AsyncSession = Depends(get_db)
+):
+    recommend = await recsys.calculate_final_scores(db, user_vector)
+    filter_recommend = await recsys.get_top_products_by_category(db, recommend)
+    # await recsys.create_view_from_df(db, top_products, "top_product_view")
+    # recommend = await recsys.execute_custom_query(db, text("SELECT product_id, product_category, product_name FROM top_product_view;"))
+    return filter_recommend.to_dict(orient="records")
+
+
+@app.get("/recsys3/{query}")
+async def recsys_product_SS(query: str, db: AsyncSession = Depends(get_db)):
+    top_products = await recsys.get_top_products_by_similarity(
+        db, query, alpha=1.0, beta=1.0, gamma=1.5, top_n=10
+    )
+    await recsys.create_view_from_df(db, top_products, "top_product_view", query)
+    recommend = await recsys.execute_custom_query(
+        db,
+        text(
+            "SELECT product_id, product_category, product_name, brand_name, original_price, final_price FROM top_product_view;"
+        ),
     )
     return recommend.to_dict(orient="records")
