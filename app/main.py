@@ -1,9 +1,12 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from . import crud, schemas
+from . import crud, schemas, recsys, review_search
 from .database import engine, Base, get_db
-from typing import List
+from typing import List, Dict, Any
+from sqlalchemy import text
+from datetime import datetime
+
 
 app = FastAPI()
 
@@ -13,6 +16,59 @@ app = FastAPI()
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # 시퀀스 값을 최대값보다 높은 값으로 설정
+        await conn.execute(
+            text(
+                """
+            DO $$
+            DECLARE
+                rec RECORD;
+            BEGIN
+                FOR rec IN (SELECT c.relname AS sequence_name, t.relname AS table_name, a.attname AS column_name
+                            FROM pg_class c
+                            JOIN pg_depend d ON d.objid = c.oid
+                            JOIN pg_class t ON t.oid = d.refobjid
+                            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
+                            WHERE c.relkind = 'S') LOOP
+                    EXECUTE 'SELECT setval(''' || rec.sequence_name || ''', COALESCE((SELECT MAX(' || rec.column_name || ') + 1 FROM ' || rec.table_name || '), 1), false)';
+                END LOOP;
+            END
+            $$;
+            """
+            )
+        )
+        # 트리거 함수 생성
+        trigger_function_sql = """
+        CREATE OR REPLACE FUNCTION update_product_review_stats()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            -- 제품 평점 및 리뷰 수 업데이트
+            UPDATE product
+            SET number_of_reviews = number_of_reviews + 1,
+                review_rating = CEIL((SELECT AVG(rating) FROM review WHERE product_id = NEW.product_id))
+            WHERE product_id = NEW.product_id;
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+        """
+        await conn.execute(text(trigger_function_sql))
+
+        # 기존 트리거 삭제
+        await conn.execute(
+            text("DROP TRIGGER IF EXISTS review_insert_trigger ON review")
+        )
+
+        # 트리거 생성
+        trigger_sql = """
+        CREATE TRIGGER review_insert_trigger
+        AFTER INSERT ON review
+        FOR EACH ROW
+        EXECUTE FUNCTION update_product_review_stats();
+        """
+        await conn.execute(text(trigger_sql))
+
+        # 인덱스 생성
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_reviewer_id ON review (reviewer_id);"))
 
 
 # 간단한 테스트 엔드포인트 추가
@@ -124,7 +180,7 @@ async def create_review(
     return await crud.create_review(db=db, review=review)
 
 
-@app.get("/reviews/{review_id}", response_model=schemas.Review)
+@app.get("/reviews/{review_id}", response_model=schemas.ReviewCreate)
 async def read_review(review_id: int, db: AsyncSession = Depends(get_db)):
     db_review = await crud.get_review(db, review_id=review_id)
     if db_review is None:
@@ -156,3 +212,76 @@ async def delete_review(review_id: int, db: AsyncSession = Depends(get_db)):
     if db_review is None:
         raise HTTPException(status_code=404, detail="Review not found")
     return db_review
+
+
+@app.get("/reviews/product/{product_name}/keyword/{keyword}")
+async def get_reviews_by_product_and_keyword(
+    product_name: str, keyword: str, db: AsyncSession = Depends(get_db)
+):
+    reviews = await review_search.get_reviews_by_product_and_keyword(
+        db, product_name, keyword
+    )
+    return reviews.to_dict(orient="records")
+
+
+@app.get("/reviews/product/{product_id}/{rating}")
+async def get_reviews_by_rating(product_id: int, rating: int, db: AsyncSession = Depends(get_db)):
+    reviews = await review_search.get_reviews_by_rating(db, product_id, rating)
+    return reviews.to_dict(orient="records")
+
+
+@app.get("/reviews/dates/")
+async def get_reviews_by_date_range(start_date: datetime, end_date: datetime, db: AsyncSession = Depends(get_db)):
+    reviews = await review_search.get_reviews_by_date_range(db, start_date, end_date)
+    return reviews.to_dict(orient="records")
+
+
+@app.get("/reviews/summary/{product_id}")
+async def get_review_count_and_average_star_by_product(product_id: int, db: AsyncSession = Depends(get_db)):
+    products = await review_search.get_review_count_and_average_star_by_product(db, product_id)
+    return products.to_dict(orient="records")
+
+
+@app.get("/reviews/brand/{brand_name}/ratios")  # response_model=List[schemas.Review]
+async def get_brand_review_ratios(brand_name: str, db: AsyncSession = Depends(get_db)):
+    reviews = await review_search.get_brand_review_ratios(db, brand_name)
+    return reviews.to_dict(orient="records")
+
+
+@app.get("/recsys1/{query}")
+async def recsys_product_SS_CBFCF(
+    query: str,
+    user_vector: Dict[str, Any] = Body(...),
+    db: AsyncSession = Depends(get_db),
+):
+    recommend = await recsys.get_final_recommendations(db, user_vector, query)
+    filter_recommend = await recsys.get_top_products_by_category(db, recommend, query)
+    # await recsys.create_view_from_df(db, top_products, "top_product_view", query)
+    # recommend = await recsys.execute_custom_query(db, text("SELECT product_category, product_id, product_name FROM top_product_view;"))
+    return filter_recommend.to_dict(orient="records")
+
+
+@app.get("/recsys2")
+async def recsys_product_CBFCF(
+    user_vector: Dict[str, Any] = Body(...), db: AsyncSession = Depends(get_db)
+):
+    recommend = await recsys.calculate_final_scores(db, user_vector)
+    filter_recommend = await recsys.get_top_products_by_category(db, recommend)
+    # await recsys.create_view_from_df(db, top_products, "top_product_view")
+    # recommend = await recsys.execute_custom_query(db, text("SELECT product_id, product_category, product_name FROM top_product_view;"))
+    return filter_recommend.to_dict(orient="records")
+
+
+@app.get("/recsys3/{query}")
+async def recsys_product_SS(query: str, db: AsyncSession = Depends(get_db)):
+    top_products = await recsys.get_top_products_by_similarity(
+        db, query, alpha=1.0, beta=1.0, gamma=1.5, top_n=10
+    )
+    await recsys.create_view_from_df(db, top_products, "top_product_view", query)
+    recommend = await recsys.execute_custom_query(
+        db,
+        text(
+            "SELECT product_id, product_category, product_name, brand_name, original_price, final_price FROM top_product_view;"
+        ),
+    )
+    return recommend.to_dict(orient="records")
