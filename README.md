@@ -11,4 +11,6 @@ psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS vector;"
 
 ## 실행
 
-uvicorn app.main:app --reload ## root folder에서 실행
+uvicorn app.main:app --reload ## root folder에서 실행     
+streamlit run app/streamlit.py ## root folder에서 실행 
+

@@ -111,3 +111,19 @@ class Product(ProductBase):
 
     class Config:
         orm_mode = True
+
+
+class UserVector(BaseModel):
+    reviewer_id: int
+    skin_type_oily: bool
+    skin_concern_excess_sebum: bool
+    skin_type_trouble_prone: bool
+    skin_type_sensitive: bool
+    skin_concern_trouble: bool
+    skin_concern_atopy: bool
+    skin_type_combination: bool
+    skin_type_normal: bool
+    skin_concern_whitening: bool
+    skin_concern_wrinkles: bool
+    skin_type_dry: bool
+    skin_type_mildly_dry: bool
