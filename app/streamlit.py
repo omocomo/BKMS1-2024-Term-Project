@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 from datetime import datetime
+from PIL import Image
 
 # 참고용 #
 
@@ -9,7 +10,31 @@ from datetime import datetime
 api_url = "http://localhost:8000"
 
 # 페이지 선택
-page = st.sidebar.selectbox("Select a page", ["Reviewers", "Reviews", "Reviews Search", "Recommendation"])
+# page = st.sidebar.selectbox("Select a page", ["Reviewers", "Reviews", "Reviews Search", "Recommendation"])
+
+# Initialize session state if not already set
+if 'page' not in st.session_state:
+    st.session_state['page'] = "Reviewers"
+
+# Sidebar with buttons
+with st.sidebar:
+    if st.button("👩‍💼 Reviewers 👨‍💼"):
+        st.session_state['page'] = "Reviewers"
+    if st.button("🗨️ Reviews 🗨️"):
+        st.session_state['page'] = "Reviews"
+    if st.button("🔍 Reviews Search 🔍"):
+        st.session_state['page'] = "Reviews Search"
+    if st.button("🌟 Recommendation 🌟"):
+        st.session_state['page'] = "Recommendation"
+
+# Display the selected page
+page = st.session_state['page']
+
+# 중앙에 이미지 추가
+col1, col2, col3 = st.columns([0.5, 2, 0.5])
+with col2:
+    image = Image.open("./app/images/logo_oliveyoung_review.png")  # 이미지 파일 경로 또는 URL
+    st.image(image, use_column_width=True)
 
 # @st.cache_data
 def fetch_reviewer_info(reviewer_id):
@@ -595,22 +620,22 @@ elif page == "Recommendation":
             skin_type_trouble_prone = st.checkbox("Trouble Prone")
             skin_type_oily = st.checkbox("Oily")
             skin_type_sensitive = st.checkbox("Sensitive")
-            skin_type_dry = st.checkbox("Dry")
         with col4:
+            skin_type_dry = st.checkbox("Dry")
             skin_type_mildly_dry = st.checkbox("Mildly Dry")
             skin_type_combination = st.checkbox("Combination")
-            skin_type_normal = st.checkbox("Normal")
     with col2:
         col5, col6 = st.columns(2)
         with col5:
+            skin_type_normal = st.checkbox("Normal")
             # skin_concern_keratin = st.checkbox("Keratin")
             # skin_concern_pores = st.checkbox("Pores")
             # skin_concern_blackheads = st.checkbox("Blackheads")
             skin_concern_excess_sebum = st.checkbox("Excess Sebum")
             skin_concern_whitening = st.checkbox("Whitening")
             # skin_concern_redness = st.checkbox("Redness")
-            skin_concern_wrinkles = st.checkbox("Wrinkles")
         with col6:
+            skin_concern_wrinkles = st.checkbox("Wrinkles")
             skin_concern_trouble = st.checkbox("Trouble")
             # skin_concern_dark_circles = st.checkbox("Dark Circles")
             # skin_concern_elasticity = st.checkbox("Elasticity")
