@@ -28,6 +28,8 @@ BKMS1-2024-Term-Project
 - 가상환경 만들기 (Conda, venv whatever you want)
 - Run postgresql server
 - root folder에 .env 만들어서 주소 넣어놓기
+  - .env example : `DATABASE_URL=postgresql+asyncpg://postgres:mypassword@localhost:5432/mydatabase`
+  - format : `[user[:password]@][netloc][:port][/dbname]`
 - `pip install -r requirements.txt`
 
 ### postgresql 에서 pgvector 설치
